@@ -8,6 +8,8 @@ from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 import os
 import time
+import platform
+import subprocess
 
 # ----------------------------------------------------------
 # ✅ Configure Tesseract (update path if different on your PC)
@@ -85,10 +87,10 @@ def evaluate_answer():
                         f"Student: {student_name}\nSubject: {subject_name}\nScore: {similarity:.2f}%\nGrade: {grade}")
 
 # ----------------------------------------------------------
-# Save results into Excel
+# Save results into Excel (always in Documents) and open it
 # ----------------------------------------------------------
 def save_results_to_excel(name, subject, prebuilt, student, score, grade):
-    base_file = "evaluation_results.xlsx"
+    base_file = os.path.expanduser("~/Documents/evaluation_results.xlsx")
     file_path = base_file
 
     new_data = pd.DataFrame({
@@ -105,20 +107,36 @@ def save_results_to_excel(name, subject, prebuilt, student, score, grade):
             existing_data = pd.read_excel(file_path, engine="openpyxl")
             updated_data = pd.concat([existing_data, new_data], ignore_index=True)
         except Exception:
-            # If file is corrupted/locked → create new one
             timestamp = time.strftime("%Y%m%d_%H%M%S")
-            file_path = f"evaluation_results_{timestamp}.xlsx"
+            file_path = os.path.expanduser(f"~/Documents/evaluation_results_{timestamp}.xlsx")
             updated_data = new_data
     else:
         updated_data = new_data
 
     try:
         updated_data.to_excel(file_path, index=False, engine="openpyxl")
+        messagebox.showinfo("Saved", f"Results saved to:\n{file_path}")
+        open_file(file_path)
     except PermissionError:
-        # If Excel file is open, save with timestamp
         timestamp = time.strftime("%Y%m%d_%H%M%S")
-        new_file = f"evaluation_results_{timestamp}.xlsx"
+        new_file = os.path.expanduser(f"~/Documents/evaluation_results_{timestamp}.xlsx")
         updated_data.to_excel(new_file, index=False, engine="openpyxl")
+        messagebox.showinfo("Saved", f"Results saved to:\n{new_file}")
+        open_file(new_file)
+
+# ----------------------------------------------------------
+# Function to open file in Excel automatically
+# ----------------------------------------------------------
+def open_file(filepath):
+    try:
+        if platform.system() == "Windows":
+            os.startfile(filepath)
+        elif platform.system() == "Darwin":  # macOS
+            subprocess.call(["open", filepath])
+        else:  # Linux
+            subprocess.call(["xdg-open", filepath])
+    except Exception as e:
+        messagebox.showerror("Error", f"Could not open file automatically:\n{e}")
 
 # ----------------------------------------------------------
 # Tkinter GUI
